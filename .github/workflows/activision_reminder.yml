@@ -15,6 +15,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
           python3 - <<'PY'
           import os, smtplib, ssl
@@ -24,11 +25,12 @@ jobs:
           user=os.environ.get('SMTP_USER','')
           password=os.environ.get('SMTP_PASSWORD','')
           recipient=os.environ.get('EMAIL_TO','')
-          if not all((host,user,password,recipient)):
-              raise SystemExit('Configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD and EMAIL_TO in repository Actions secrets')
+          sender=os.environ.get('EMAIL_FROM','')
+          if not all((host,user,password,recipient,sender)):
+              raise SystemExit('Configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM and EMAIL_TO in repository Actions secrets')
           msg=EmailMessage()
           msg['Subject']='Activision matchmaking status — check reminder'
-          msg['From']=user
+          msg['From']=sender
           msg['To']=recipient
           msg.set_content('Reminder: Visit https://support.activision.com/ban-appeal and log in to check your current limited matchmaking status. This is NOT a verified status change alert.')
           if port==465:
