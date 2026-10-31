@@ -1,0 +1,24 @@
+name: Activision Status Reminder
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions: {}
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord reminder (not automatic account status detection)
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request, sys
+          url = os.getenv('DISCORD_WEBHOOK_URL','')
+          if not url.startswith(('https://discord.com/api/webhooks/','https://discordapp.com/api/webhooks/')):
+              sys.exit('Missing/invalid DISCORD_WEBHOOK_URL repository secret')
+          payload = {'content': '⏰ **Activision status check**: Sign in at https://support.activision.com/ban-appeal to check whether your limited matchmaking status has changed. This message is a reminder, **not a verified account status**.'}
+          req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={'Content-Type':'application/json','User-Agent':'COD-Status-Reminder/1.0'}, method='POST')
+          with urllib.request.urlopen(req, timeout=20) as resp:
+              print('Discord reminder delivered:',resp.status)
+          PY
