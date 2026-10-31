@@ -1,4 +1,4 @@
-name: Activision Status Reminder
+name: Activision Status Email Reminder
 on:
   schedule:
     - cron: '17 * * * *'
@@ -8,17 +8,37 @@ jobs:
   reminder:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Discord reminder (not automatic account status detection)
+      - name: Email account status check reminder
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
           python3 - <<'PY'
-          import os, json, urllib.request, sys
-          url = os.getenv('DISCORD_WEBHOOK_URL','')
-          if not url.startswith(('https://discord.com/api/webhooks/','https://discordapp.com/api/webhooks/')):
-              sys.exit('Missing/invalid DISCORD_WEBHOOK_URL repository secret')
-          payload = {'content': '⏰ **Activision status check**: Sign in at https://support.activision.com/ban-appeal to check whether your limited matchmaking status has changed. This message is a reminder, **not a verified account status**.'}
-          req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={'Content-Type':'application/json','User-Agent':'COD-Status-Reminder/1.0'}, method='POST')
-          with urllib.request.urlopen(req, timeout=20) as resp:
-              print('Discord reminder delivered:',resp.status)
+          import os, smtplib, ssl
+          from email.message import EmailMessage
+          host=os.environ.get('SMTP_HOST','')
+          port=int(os.environ.get('SMTP_PORT') or '465')
+          user=os.environ.get('SMTP_USER','')
+          password=os.environ.get('SMTP_PASSWORD','')
+          recipient=os.environ.get('EMAIL_TO','')
+          if not all((host,user,password,recipient)):
+              raise SystemExit('Configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD and EMAIL_TO in repository Actions secrets')
+          msg=EmailMessage()
+          msg['Subject']='Activision matchmaking status — check reminder'
+          msg['From']=user
+          msg['To']=recipient
+          msg.set_content('Reminder: Visit https://support.activision.com/ban-appeal and log in to check your current limited matchmaking status. This is NOT a verified status change alert.')
+          if port==465:
+              with smtplib.SMTP_SSL(host,port,context=ssl.create_default_context(),timeout=25) as s:
+                  s.login(user,password)
+                  s.send_message(msg)
+          else:
+              with smtplib.SMTP(host,port,timeout=25) as s:
+                  s.starttls(context=ssl.create_default_context())
+                  s.login(user,password)
+                  s.send_message(msg)
+          print('Email reminder sent.')
           PY
