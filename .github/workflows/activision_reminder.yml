@@ -21,7 +21,7 @@ jobs:
           import os, smtplib, ssl, sys
           from email.message import EmailMessage
           host=os.environ.get('SMTP_HOST','')
-          port=int(os.environ.get('SMTP_PORT') or '465')
+          port=587  # Brevo-recommended STARTTLS port
           user=os.environ.get('SMTP_USER','')
           password=os.environ.get('SMTP_PASSWORD','')
           recipient=os.environ.get('EMAIL_TO','')
