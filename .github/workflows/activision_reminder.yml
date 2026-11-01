@@ -6,7 +6,7 @@ on:
 permissions: {}
 jobs:
   reminder:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Email account status check reminder
         env:
@@ -18,7 +18,7 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: |
           python3 - <<'PY'
-          import os, smtplib, ssl
+          import os, smtplib, ssl, sys
           from email.message import EmailMessage
           host=os.environ.get('SMTP_HOST','')
           port=int(os.environ.get('SMTP_PORT') or '465')
@@ -33,14 +33,19 @@ jobs:
           msg['From']=sender
           msg['To']=recipient
           msg.set_content('Reminder: Visit https://support.activision.com/ban-appeal and log in to check your current limited matchmaking status. This is NOT a verified status change alert.')
-          if port==465:
-              with smtplib.SMTP_SSL(host,port,context=ssl.create_default_context(),timeout=25) as s:
-                  s.login(user,password)
-                  s.send_message(msg)
-          else:
-              with smtplib.SMTP(host,port,timeout=25) as s:
-                  s.starttls(context=ssl.create_default_context())
-                  s.login(user,password)
-                  s.send_message(msg)
-          print('Email reminder sent.')
+          try:
+              if port==465:
+                  with smtplib.SMTP_SSL(host,port,context=ssl.create_default_context(),timeout=25) as s:
+                      s.login(user.strip(),password.strip())
+                      s.send_message(msg)
+              else:
+                  with smtplib.SMTP(host,port,timeout=25) as s:
+                      s.starttls(context=ssl.create_default_context())
+                      s.login(user.strip(),password.strip())
+                      s.send_message(msg)
+          except smtplib.SMTPAuthenticationError:
+              sys.exit('Brevo rejected SMTP login (535). Confirm SMTP activation, exact SMTP Login in SMTP_USER, and an SMTP key (not API key) in SMTP_PASSWORD. Secrets must be corrected in GitHub Settings.')
+          except smtplib.SMTPException as e:
+              sys.exit('SMTP error ('+type(e).__name__+'). Review Brevo account SMTP activation and sender verification.')
+          print('Email reminder accepted by SMTP server.')
           PY
